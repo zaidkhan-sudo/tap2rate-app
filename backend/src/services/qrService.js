@@ -35,6 +35,52 @@ async function createQr() {
   }
 }
 
+async function createBulkQrs(quantity) {
+  if (!Number.isInteger(quantity) || quantity < 1 || quantity > 500) {
+    throw httpError(400, "Quantity must be an integer between 1 and 500");
+  }
+
+  const generatedQrs = [];
+  let remaining = quantity;
+  let maxRetries = 10;
+
+  while (remaining > 0 && maxRetries > 0) {
+    const batchIds = new Set();
+    while (batchIds.size < remaining) {
+      batchIds.add(generateQrId());
+    }
+
+    const docs = Array.from(batchIds).map((id) => ({ qrId: id, status: "UNUSED" }));
+
+    try {
+      const inserted = await Qr.insertMany(docs, { ordered: false });
+      generatedQrs.push(...inserted);
+      remaining -= inserted.length;
+    } catch (err) {
+      if (err.code === 11000) {
+        if (err.insertedDocs && Array.isArray(err.insertedDocs)) {
+          generatedQrs.push(...err.insertedDocs);
+          remaining -= err.insertedDocs.length;
+        } else {
+          const checkInserted = await Qr.find({ qrId: { $in: Array.from(batchIds) } });
+          const newInserts = checkInserted.filter((doc) => !generatedQrs.some((g) => g.qrId === doc.qrId));
+          generatedQrs.push(...newInserts);
+          remaining -= newInserts.length;
+        }
+      } else {
+        throw err;
+      }
+    }
+    maxRetries--;
+  }
+
+  if (remaining > 0) {
+    throw httpError(500, "Failed to generate all QR codes due to ID collisions.");
+  }
+
+  return generatedQrs;
+}
+
 async function getQrByQrId(qrId) {
   if (!isValidQrId(qrId)) {
     throw httpError(400, "Invalid QR ID format");
@@ -178,6 +224,29 @@ async function deleteQr(qrId) {
   }
 }
 
+async function deleteBulkUnusedQrs(qrIds) {
+  if (!Array.isArray(qrIds)) {
+    throw httpError(400, "qrIds must be an array");
+  }
+
+  if (qrIds.length > 2000) {
+    throw httpError(400, "Maximum limit of 2000 IDs exceeded");
+  }
+
+  const validQrIds = qrIds.filter(isValidQrId);
+
+  if (validQrIds.length === 0) {
+    return 0;
+  }
+
+  const result = await Qr.deleteMany({
+    qrId: { $in: validQrIds },
+    status: "UNUSED",
+  });
+
+  return result.deletedCount;
+}
+
 async function getStats() {
   const result = await Qr.aggregate([
     {
@@ -207,12 +276,14 @@ async function getStats() {
 
 module.exports = {
   createQr,
+  createBulkQrs,
   getQrByQrId,
   listQrs,
   assignQr,
   setQrStatus,
   resolveRedirect,
   deleteQr,
+  deleteBulkUnusedQrs,
   getStats,
   httpError,
 };

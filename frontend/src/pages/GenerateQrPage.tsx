@@ -1,93 +1,87 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Check, Copy, Download, QrCode } from "lucide-react";
-import { QRCodeCanvas, QRCodeSVG } from "qrcode.react";
+import { Download, QrCode } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import RealismButton from "@/components/ui/shiny-borders-button";
-import { ApiError, apiPost } from "@/lib/api";
-
-interface GeneratedQr {
-  qrId: string;
-  qrUrl: string;
-}
+import { getAccessToken, refreshAccessToken } from "@/lib/api";
 
 export default function GenerateQrPage() {
-  const [qr, setQr] = useState<GeneratedQr | null>(null);
+  const [quantity, setQuantity] = useState("1");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [successCount, setSuccessCount] = useState<number | null>(null);
 
-  const svgWrapRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLDivElement>(null);
-
-  async function generate() {
+  async function generate(e?: React.FormEvent) {
+    if (e) e.preventDefault();
     if (loading) return;
+
+    const num = parseInt(quantity, 10);
+    if (isNaN(num) || num < 1 || num > 500) {
+      setError("Please enter a valid quantity between 1 and 500.");
+      return;
+    }
+    if (quantity.includes(".")) {
+      setError("Quantity must be a whole number.");
+      return;
+    }
 
     setLoading(true);
     setError(null);
+    setSuccessCount(null);
 
     try {
-      const res = await apiPost<{ data: GeneratedQr }>("/api/qr");
-      setQr(res.data);
+      let token = getAccessToken();
+      const doFetch = (t: string | null) =>
+        fetch("/api/qr/bulk", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(t ? { Authorization: `Bearer ${t}` } : {}),
+          },
+          body: JSON.stringify({ quantity: num }),
+        });
+
+      let res = await doFetch(token);
+
+      if (res.status === 401) {
+        token = await refreshAccessToken();
+        if (token) {
+          res = await doFetch(token);
+        }
+      }
+
+      if (!res.ok) {
+        let msg = `Failed to generate QR codes (${res.status})`;
+        try {
+          const body = await res.json();
+          if (body.message || body.error) msg = body.message || body.error;
+        } catch {}
+        throw new Error(msg);
+      }
+
+      const blob = await res.blob();
+
+      const disposition = res.headers.get("content-disposition");
+      let filename = `tap2rate-qrs-${new Date().toISOString().split("T")[0]}.zip`;
+      if (disposition && disposition.includes("filename=")) {
+        filename = disposition.split("filename=")[1].replace(/['"]/g, "");
+      }
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      setSuccessCount(num);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to generate QR code");
+      setError(err instanceof Error ? err.message : "Failed to generate QR codes");
     } finally {
       setLoading(false);
     }
-  }
-
-  async function copyUrl() {
-    if (!qr) return;
-    try {
-      await navigator.clipboard.writeText(qr.qrUrl);
-    } catch {
-      const el = document.createElement("textarea");
-      el.value = qr.qrUrl;
-      document.body.appendChild(el);
-      el.select();
-      document.execCommand("copy");
-      document.body.removeChild(el);
-    }
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1600);
-  }
-
-  function triggerDownload(blob: Blob, filename: string) {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }
-
-  function downloadSvg() {
-    if (!qr || !svgWrapRef.current) return;
-    const svg = svgWrapRef.current.querySelector("svg");
-    if (!svg) return;
-
-    const clone = svg.cloneNode(true) as SVGElement;
-    clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-    clone.setAttribute("width", "1024");
-    clone.setAttribute("height", "1024");
-
-    const serialized = new XMLSerializer().serializeToString(clone);
-    const blob = new Blob([`<?xml version="1.0" standalone="no"?>\n${serialized}`], {
-      type: "image/svg+xml;charset=utf-8",
-    });
-    triggerDownload(blob, `tap2rate-${qr.qrId}.svg`);
-  }
-
-  function downloadPng() {
-    if (!qr || !canvasRef.current) return;
-    const canvas = canvasRef.current.querySelector("canvas");
-    if (!canvas) return;
-
-    canvas.toBlob((blob) => {
-      if (blob) triggerDownload(blob, `tap2rate-${qr.qrId}.png`);
-    }, "image/png");
   }
 
   return (
@@ -108,90 +102,69 @@ export default function GenerateQrPage() {
           </div>
         )}
 
-        {!qr ? (
-          <div className="mt-14 flex flex-col items-center text-center">
-            <span className="grid h-16 w-16 place-items-center rounded-3xl border border-white/10 bg-white/[0.04]">
-              <QrCode className="h-8 w-8 text-violet-300" />
-            </span>
-            <h1 className="mt-5 text-2xl font-bold tracking-tight">Generate a new QR code</h1>
-            <p className="mt-2 max-w-sm text-[14px] leading-relaxed text-neutral-400">
-              Every code gets a permanent URL that never changes — assign it to any business now
-              or later.
-            </p>
-            <div className="mt-7">
+        <div className="mt-14 flex flex-col items-center text-center">
+          <span className="grid h-16 w-16 place-items-center rounded-3xl border border-white/10 bg-white/[0.04]">
+            <QrCode className="h-8 w-8 text-violet-300" />
+          </span>
+          <h1 className="mt-5 text-2xl font-bold tracking-tight">Generate QR codes</h1>
+          <p className="mt-2 max-w-sm text-[14px] leading-relaxed text-neutral-400">
+            Generate up to 500 unique, unassigned QR codes at once. You will receive a ZIP file containing scalable SVGs ready for printing.
+          </p>
+
+          <form onSubmit={generate} className="mt-8 flex w-full max-w-xs flex-col items-center gap-4">
+            <div className="w-full text-left">
+              <label htmlFor="quantity" className="mb-1.5 block pl-1 text-[13px] font-medium text-neutral-300">
+                Quantity (1-500)
+              </label>
+              <input
+                id="quantity"
+                type="number"
+                min="1"
+                max="500"
+                step="1"
+                required
+                value={quantity}
+                onChange={(e) => setQuantity(e.target.value)}
+                disabled={loading}
+                className="w-full rounded-xl border border-white/10 bg-white/[0.02] px-4 py-3 text-white placeholder-neutral-500 outline-none transition focus:border-violet-500/50 focus:bg-white/[0.04]"
+                placeholder="Number of codes"
+              />
+            </div>
+
+            <div className="mt-3 w-full flex justify-center">
               <RealismButton
-                text={loading ? "Generating…" : "Generate QR code"}
+                text={loading ? "Generating…" : "Generate QR codes"}
                 onClick={generate}
                 disabled={loading}
               />
             </div>
-          </div>
-        ) : (
-          <div className="mt-8 flex flex-col items-center">
-            <p className="text-[11.5px] font-semibold uppercase tracking-wider text-emerald-300">
-              Code created
-            </p>
+          </form>
 
-            <div className="mt-5 rounded-[28px] bg-white p-6 shadow-[0_0_60px_-15px_rgba(168,85,247,0.45)]">
-              <div ref={svgWrapRef}>
-                <QRCodeSVG value={qr.qrUrl} size={220} level="M" bgColor="#ffffff" fgColor="#000000" />
+          {successCount !== null && (
+            <div className="mt-10 flex flex-col items-center animate-in fade-in slide-in-from-bottom-2 duration-500">
+              <p className="text-[14.5px] font-medium text-emerald-400">
+                {successCount} QR code{successCount === 1 ? "" : "s"} generated successfully.
+              </p>
+              <p className="mt-1.5 text-[13px] text-neutral-400">
+                Your ZIP file should have started downloading automatically.
+              </p>
+
+              <div className="mt-6 w-full max-w-md rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-center">
+                <p className="text-[14px] font-medium">Next steps</p>
+                <p className="mt-1 text-[13px] leading-relaxed text-neutral-400">
+                  Unzip the file and send the SVGs to your printer. When someone scans a printed code for the first time, Tap2Rate will ask you to assign it to a business.
+                </p>
+                <Link
+                  to="/qrs"
+                  className="mt-4 inline-block text-[13.5px] font-medium text-violet-400 transition hover:text-violet-300"
+                >
+                  View all unused codes →
+                </Link>
               </div>
             </div>
-
-            <p className="mt-5 font-mono text-lg tracking-wide">{qr.qrId}</p>
-
-            <button
-              type="button"
-              onClick={copyUrl}
-              className="mt-2 flex items-center gap-2 font-mono text-[13px] text-neutral-400 transition hover:text-white"
-            >
-              {qr.qrUrl}
-              {copied ? (
-                <Check className="h-4 w-4 text-emerald-400" />
-              ) : (
-                <Copy className="h-4 w-4" />
-              )}
-            </button>
-            {copied && <span className="sr-only">Copied</span>}
-
-            <div className="mt-7 flex w-full flex-row flex-wrap items-center justify-center gap-3 sm:gap-4">
-              <button
-                type="button"
-                onClick={downloadSvg}
-                className="inline-flex items-center gap-2 rounded-full border border-violet-500/50 bg-violet-500/15 px-4 py-2.5 text-[13.5px] font-medium text-violet-200 transition hover:bg-violet-500/25"
-              >
-                <Download className="h-4 w-4" /> Download SVG
-              </button>
-              <button
-                type="button"
-                onClick={downloadPng}
-                className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.05] px-4 py-2.5 text-[13.5px] font-medium text-neutral-200 transition hover:bg-white/10"
-              >
-                <Download className="h-4 w-4" /> Download PNG
-              </button>
-              <RealismButton text="Generate another" onClick={generate} />
-            </div>
-
-            <div className="mt-9 w-full max-w-md rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-center">
-              <p className="text-[14px] font-medium">Next step</p>
-              <p className="mt-1 text-[13px] leading-relaxed text-neutral-400">
-                This code is unused. Assign it to a business to start sending customers to their
-                Google Reviews page.
-              </p>
-              <Link
-                to={`/qrs/${qr.qrId}`}
-                className="mt-3 inline-block text-[13.5px] font-medium text-violet-400 transition hover:text-violet-300"
-              >
-                Activate &amp; assign this code →
-              </Link>
-            </div>
-          </div>
-        )}
+          )}
+        </div>
       </main>
-
-      <div ref={canvasRef} className="hidden" aria-hidden="true">
-        {qr && <QRCodeCanvas value={qr.qrUrl} size={1024} level="M" bgColor="#ffffff" fgColor="#000000" />}
-      </div>
     </div>
   );
 }
