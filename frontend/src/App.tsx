@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import type { ReactNode } from "react";
 import HomePage from "@/pages/HomePage";
 import LoginPage from "@/pages/LoginPage";
@@ -18,7 +18,13 @@ function Splash() {
 
 function Protected({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  if (!user) return <Navigate to="/login" replace />;
+  const location = useLocation();
+
+  if (!user) {
+    const returnTo = location.pathname + location.search;
+    return <Navigate to={`/login?from=${encodeURIComponent(returnTo)}`} replace />;
+  }
+
   return <>{children}</>;
 }
 

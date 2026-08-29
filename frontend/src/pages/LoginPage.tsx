@@ -30,7 +30,8 @@ export default function LoginPage() {
 
     try {
       await login(email.trim(), password);
-      navigate("/", { replace: true });
+      const returnTo = searchParams.get("from") || "/";
+      navigate(returnTo, { replace: true });
     } catch (err) {
       if (err instanceof ApiError && err.statusCode === 403 && /not verified/i.test(err.message)) {
         navigate(`/verify-email?email=${encodeURIComponent(email.trim())}`, { replace: true });

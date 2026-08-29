@@ -1,6 +1,7 @@
 const express = require("express");
 
 const qrService = require("../services/qrService");
+const { env } = require("../config/env");
 
 const router = express.Router();
 
@@ -26,10 +27,10 @@ p{margin:0;font-size:.9rem;color:#777}
 </html>`;
 
 router.get("/q/:qrId", async (req, res, next) => {
-  let destination;
+  let result;
 
   try {
-    destination = await qrService.resolveRedirect(req.params.qrId);
+    result = await qrService.resolveRedirect(req.params.qrId);
   } catch (err) {
     if (err && err.statusCode === 404) {
       return res.status(404).type("html").send(UNAVAILABLE_PAGE);
@@ -38,7 +39,15 @@ router.get("/q/:qrId", async (req, res, next) => {
   }
 
   res.set("Cache-Control", "no-store");
-  return res.redirect(302, destination);
+
+  if (result.type === "review") {
+    return res.redirect(302, result.url);
+  }
+
+  // UNUSED QR — redirect to admin assign page
+  const adminUrl = env.adminFrontendUrl || env.qrBaseUrl;
+  return res.redirect(302, `${adminUrl}/qrs/${result.qrId}`);
 });
 
 module.exports = router;
+

@@ -155,11 +155,16 @@ async function resolveRedirect(qrId) {
 
   const qr = await Qr.findOne({ qrId }).select("googleReviewUrl status");
 
-  if (!qr || qr.status !== "ACTIVE" || !qr.googleReviewUrl) {
+  if (!qr || qr.status === "DISABLED") {
     throw httpError(404, REDIRECT_UNAVAILABLE_MESSAGE);
   }
 
-  return qr.googleReviewUrl;
+  if (qr.status === "ACTIVE" && qr.googleReviewUrl) {
+    return { type: "review", url: qr.googleReviewUrl };
+  }
+
+  // UNUSED (or ACTIVE without a URL, which shouldn't happen but handle gracefully)
+  return { type: "unassigned", qrId };
 }
 
 async function deleteQr(qrId) {

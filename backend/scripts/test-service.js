@@ -72,13 +72,16 @@ async function main() {
   console.log("PASS assign validation: bad URL / empty name / unknown ID -> 400/404");
   pass++;
 
-  assert.strictEqual(await qrService.resolveRedirect(q1.qrId), "https://g.page/r/NewUrl456/review");
-  console.log("PASS redirect resolution returns stored Google Review URL");
+  const activeResult = await qrService.resolveRedirect(q1.qrId);
+  assert.deepStrictEqual(activeResult, { type: "review", url: "https://g.page/r/NewUrl456/review" });
+  console.log("PASS redirect resolution returns { type: 'review', url } for ACTIVE QR");
   pass++;
 
-  await expectHttpError(() => qrService.resolveRedirect(q3.qrId), 404, "UNUSED QR no redirect");
+  const unusedResult = await qrService.resolveRedirect(q3.qrId);
+  assert.strictEqual(unusedResult.type, "unassigned");
+  assert.strictEqual(unusedResult.qrId, q3.qrId);
   await expectHttpError(() => qrService.resolveRedirect("NOPE12"), 404, "unknown QR uniform 404");
-  console.log("PASS inactive/unknown QRs -> uniform 404 (no existence leak)");
+  console.log("PASS UNUSED QR -> { type: 'unassigned' }; unknown QR -> 404");
   pass++;
 
   await expectHttpError(
@@ -97,7 +100,8 @@ async function main() {
   );
   const reactivated = await qrService.setQrStatus(q1.qrId, "ACTIVE");
   assert.strictEqual(reactivated.status, "ACTIVE");
-  assert.strictEqual(await qrService.resolveRedirect(q1.qrId), "https://g.page/r/NewUrl456/review");
+  const reactivatedResult = await qrService.resolveRedirect(q1.qrId);
+  assert.deepStrictEqual(reactivatedResult, { type: "review", url: "https://g.page/r/NewUrl456/review" });
   console.log("PASS disable blocks redirect+edits; re-enable restores redirect; premature activation blocked (409)");
   pass++;
 

@@ -76,7 +76,6 @@ The customer does not need to log in or interact with the Tap2Rate frontend.
 * Refresh-token rotation and reuse detection
 * Serverless-compatible architecture
 * Responsive admin interface
-* PWA support for mobile admin usage
 
 ---
 
@@ -158,7 +157,6 @@ when it should no longer redirect.
 * JavaScript
 * Vite
 * Responsive UI
-* PWA support
 * `qrcode.react` for QR generation
 
 ## Backend
@@ -578,27 +576,11 @@ SVG is preferred for printable QR codes because it can scale without becoming bl
 
 ---
 
-# PWA
+# Mobile Access
 
-The admin dashboard is designed to work well on mobile devices.
+The admin dashboard is a responsive web application designed to work well in mobile browsers.
 
-The frontend can be installed as a Progressive Web App.
-
-The goal is:
-
-```text
-Open Tap2Rate on phone
-        ↓
-Add to Home Screen
-        ↓
-Tap2Rate appears like an app
-        ↓
-Admin Dashboard
-```
-
-The PWA is primarily for the administrator.
-
-Offline functionality is not a core requirement because QR management requires communication with the backend and database.
+There is no installable PWA or service worker. This avoids conflicts with the QR redirect system and keeps the architecture simple.
 
 ---
 
@@ -623,6 +605,8 @@ Tap2Rate follows several security practices:
 * Sensitive configuration stored in environment variables
 * No secrets committed to source control
 * Public QR endpoint isolated from admin authentication
+
+Note: The public QR endpoint distinguishes between UNUSED (redirects to admin assign page) and DISABLED/nonexistent (returns unavailable page) QR codes. This is by design to enable the scan-to-assign workflow. No sensitive business or admin data is exposed through this distinction, and admin pages require authentication.
 
 ---
 
