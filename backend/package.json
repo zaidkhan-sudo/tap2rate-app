@@ -1,0 +1,32 @@
+{
+  "name": "dynamic-qr-backend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Dynamic QR code to Google Reviews redirect service",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "dev:demo": "node scripts/dev-server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "express-rate-limit": "^8.6.2",
+    "helmet": "^8.3.0",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^8.16.0",
+    "morgan": "^1.11.0",
+    "nodemailer": "^9.0.5"
+  },
+  "devDependencies": {
+    "mongodb-memory-server": "^11.2.0",
+    "nodemon": "^3.1.10"
+  }
+}
