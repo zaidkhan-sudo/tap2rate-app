@@ -29,6 +29,7 @@ const publicLimiter = rateLimit({
   standardHeaders: "draft-7",
   legacyHeaders: false,
   message: rateLimitMessage("Too many requests, please slow down"),
+  validate: { trustProxy: false },
 });
 
 const loginLimiter = rateLimit({
@@ -37,6 +38,7 @@ const loginLimiter = rateLimit({
   standardHeaders: "draft-7",
   legacyHeaders: false,
   message: rateLimitMessage("Too many login attempts, try again later"),
+  validate: { trustProxy: false },
 });
 
 const otpLimiter = rateLimit({
@@ -45,6 +47,7 @@ const otpLimiter = rateLimit({
   standardHeaders: "draft-7",
   legacyHeaders: false,
   message: rateLimitMessage("Too many verification attempts, try again later"),
+  validate: { trustProxy: false },
 });
 
 const refreshLimiter = rateLimit({
@@ -53,6 +56,7 @@ const refreshLimiter = rateLimit({
   standardHeaders: "draft-7",
   legacyHeaders: false,
   message: rateLimitMessage("Too many refresh requests, try again later"),
+  validate: { trustProxy: false },
 });
 
 const adminApiLimiter = rateLimit({
@@ -61,6 +65,7 @@ const adminApiLimiter = rateLimit({
   standardHeaders: "draft-7",
   legacyHeaders: false,
   message: rateLimitMessage("Too many requests, please slow down"),
+  validate: { trustProxy: false },
 });
 
 module.exports = {
