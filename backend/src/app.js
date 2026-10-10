@@ -19,7 +19,7 @@ const { env } = require("./config/env");
 
 const app = express();
 
-app.set("trust proxy", 1);
+app.set("trust proxy", true);
 app.disable("x-powered-by");
 
 app.use(helmetMiddleware);
