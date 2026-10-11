@@ -34,7 +34,7 @@ const publicLimiter = rateLimit({
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 10,
+  limit: 20,
   standardHeaders: "draft-7",
   legacyHeaders: false,
   message: rateLimitMessage("Too many login attempts, try again later"),
