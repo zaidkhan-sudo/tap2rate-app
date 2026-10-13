@@ -25,5 +25,8 @@
     "morgan": "^1.11.0",
     "nodemailer": "^9.0.5",
     "qrcode": "^1.5.4"
+  },
+  "optionalDependencies": {
+    "@rollup/rollup-linux-x64-gnu": "4.63.0"
   }
 }
