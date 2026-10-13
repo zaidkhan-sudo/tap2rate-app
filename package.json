@@ -27,6 +27,7 @@
     "qrcode": "^1.5.4"
   },
   "optionalDependencies": {
-    "@rollup/rollup-linux-x64-gnu": "4.63.0"
+    "@rollup/rollup-linux-x64-gnu": "4.63.0",
+    "lightningcss-linux-x64-gnu": "1.32.0"
   }
 }
