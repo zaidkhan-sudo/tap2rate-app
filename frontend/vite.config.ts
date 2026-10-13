@@ -13,10 +13,7 @@ export default defineConfig({
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
-  build: {
-    outDir: "../dist",
-    emptyOutDir: true,
-  },
+
   server: {
     port: 3000,
     allowedHosts: ["localhost", "127.0.0.1"],

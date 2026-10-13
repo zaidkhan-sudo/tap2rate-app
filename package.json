@@ -7,7 +7,7 @@
     "backend"
   ],
   "scripts": {
-    "build": "npm run build --workspace=frontend",
+    "build": "npm run build --workspace=frontend && (mkdir -p dist && cp -r frontend/dist/* dist/ || true)",
     "dev:frontend": "npm run dev --workspace=frontend",
     "dev:backend": "npm run dev --workspace=backend"
   },
