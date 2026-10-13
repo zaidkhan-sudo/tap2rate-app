@@ -1,7 +1,6 @@
 const qrService = require("../services/qrService");
 const { env } = require("../config/env");
 const qrcode = require("qrcode");
-const { ZipArchive } = require("archiver");
 
 function buildQrUrl(qrId) {
   return `${env.qrBaseUrl.replace(/\/+$/, "")}/q/${qrId}`;
@@ -98,6 +97,12 @@ async function bulkCreateQrs(req, res) {
   // 2. Set up ZIP response
   const dateStr = new Date().toISOString().split("T")[0];
   res.attachment(`tap2rate-qrs-${dateStr}.zip`);
+
+  const archiverModule = await import("archiver");
+  const ZipArchive =
+    archiverModule.ZipArchive ||
+    archiverModule.default?.ZipArchive ||
+    archiverModule.default;
 
   const archive = new ZipArchive({
     zlib: { level: 9 }, // maximum compression
